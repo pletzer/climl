@@ -2,6 +2,14 @@ import defopt
 import random
 import json
 
+def sanitize_number(x):
+    """Convert x to int if it is a whole number, else leave as float"""
+    x = float(x)
+    if x.is_integer():
+        return str(int(x))
+    else:
+        return str(x)
+
 
 def main(*, lon: float, lat: float, seed: int):
     """
@@ -14,7 +22,10 @@ def main(*, lon: float, lat: float, seed: int):
         'score': random.random(),
     }
 
-    output_file = f'../output/lon{lon}_lat{lat}_seed{seed}.json'
+    lon_str = sanitize_number(lon)
+    lat_str = sanitize_number(lat)
+    output_file = f'../output/lon{lon_str}_lat{lat_str}_seed{seed}.json'
+    print(f'writing score in file {output_file}')
     with open(output_file, "w") as json_file:
         json.dump(data, json_file)
 
