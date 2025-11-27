@@ -46,8 +46,12 @@ This file contains the top 3 scoring SEED values for each (LON, LAT).
 
 ## Running the Workflow
 
+0. Check the dependencies
+```
+snakemake --dag | dot -Tpng > workflow_dag.png
+```
+
 1. Run the workflow
-To execute all steps:
 ```
 snakemake --cores 4
 ```
