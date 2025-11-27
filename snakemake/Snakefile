@@ -1,105 +1,21 @@
-# Snakefile
+J = range(3)
+I = range(2)
 
-import pandas as pd
-import re
-
-# ------------------------------------------------------
-# Load table of LON,LAT,SEED
-# ------------------------------------------------------
-lonlatseed = pd.read_csv("../input/lonlatseed.csv")
-
-# remove trailing .0 if present
-lonlatseed["LON"] = lonlatseed["LON"].apply(lambda x: str(int(x)) if float(x).is_integer() else str(x))
-lonlatseed["LAT"] = lonlatseed["LAT"].apply(lambda x: str(int(x)) if float(x).is_integer() else str(x))
-lonlatseed["SEED"] = lonlatseed["SEED"].apply(lambda x: str(int(x)))
-
-# Create list of output JSON files
-json_outputs = [
-    f"../output/lon{row.LON}_lat{row.LAT}_seed{row.SEED}.json"
-    for _, row in lonlatseed.iterrows()
-]
-
-# ------------------------------------------------------
-# Final target
-# ------------------------------------------------------
 rule all:
     input:
-        json_outputs,
-        "../output/lonlatseed.csv"
+        expand("output/result_{i}.txt", i=I)
 
-
-# ------------------------------------------------------
-# Rule: run train_predict.py for every row
-# Produces JSON file with a "score" field
-# ------------------------------------------------------
-rule train_predict:
+rule sum:
     input:
-        "../utils/train_predict.py"
+        # dynamic rule, the value i is the current value for that job
+        lambda wildcards: expand("input/data{I}_{J}.txt", I=wildcards.i, J=J)
     output:
-        "../output/lon{lon}_lat{lat}_seed{seed}.json"
-    wildcard_constraints:
-        lon=r"-?[0-9]+",
-        lat=r"-?[0-9]+"
-    params:
-        lon="{lon}",
-        lat="{lat}",
-        seed="{seed}"
-    shell:
-        """
-        python {input} \
-            --lon {params.lon} \
-            --lat {params.lat} \
-            --seed {params.seed} \
-        """
-
-
-# ------------------------------------------------------
-# Rule: aggregate best 3 scores for each (lon,lat)
-# ------------------------------------------------------
-rule select_best_scores:
-    input:
-        json_files=json_outputs
-    output:
-        "../output/lonlatseed.csv"
+        "output/result_{i}.txt"
     run:
-        import json
-        from pathlib import Path
-        import pandas as pd
-
-        records = []
-
-        # Load all JSON outputs
-        for jf in input.json_files:
-            with open(jf) as f:
-                data = json.load(f)
-
-            # Extract lon, lat, seed from filename
-            p = Path(jf).stem   # e.g. "lon10_lat-45_seed123"
-
-            m = re.match(r"lon(?P<lon>-?[\d\.]+)_lat(?P<lat>-?[\d\.]+)_seed(?P<seed>\d+)", p)
-            if not m:
-                raise ValueError(f"Filename {jf} does not match expected pattern")
-
-            lon = float(m.group("lon"))
-            lat = float(m.group("lat"))
-            seed = int(m.group("seed"))
-
-            records.append({
-                "LON": float(lon),
-                "LAT": float(lat),
-                "SEED": int(seed),
-                "SCORE": data["score"]
-            })
-
-        df = pd.DataFrame(records)
-
-        # Select the best num_best seeds for each (lon,lat)
-        num_best = 3
-        best = (
-            df.sort_values("SCORE", ascending=False)
-              .groupby(["LON", "LAT"])
-              .head(num_best)
-              .reset_index(drop=True)
-        )
-
-        best.to_csv(output[0], index=False)
+        total = 0
+        for f in input:
+            with open(f) as fh:
+                for line in fh.readlines():
+                    total += int(line)
+        with open(output[0], 'w') as fo:
+            fo.write(str(total))
