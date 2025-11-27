@@ -1,21 +1,55 @@
-J = range(3)
-I = range(2)
+import pandas as pd
+import random
+
+# get the lons and lats
+df = pd.read_csv("../input/lonlat.csv")
+LONS = df.LON.unique()
+LATS = df.LAT.unique()
+
+I = range(len(LONS))
+J = range(len(LATS))
+
+SEEDS = [123, 432, 765]
 
 rule all:
     input:
-        expand("output/result_{i}.txt", i=I)
+        expand("output/best_{i}_{j}.csv", i=I, j=J)
 
-rule sum:
-    input:
-        # dynamic rule, the value i is the current value for that job
-        lambda wildcards: expand("input/data{I}_{J}.txt", I=wildcards.i, J=J)
+
+rule train_predict:
     output:
-        "output/result_{i}.txt"
+        "output/results{i}_{j}_seed{seed}.csv"
+    params:
+        lon=lambda wildcards: LONS[int(wildcards.i)],
+        lat=lambda wildcards: LATS[int(wildcards.j)],
+        seed=lambda wildcards: int(wildcards.seed)
     run:
-        total = 0
-        for f in input:
-            with open(f) as fh:
-                for line in fh.readlines():
-                    total += int(line)
-        with open(output[0], 'w') as fo:
-            fo.write(str(total))
+        # create dummy SCORE
+        data = pd.DataFrame({
+            'LON': [params.lon],
+            'LAT': [params.lat],
+            'SEED': [params.seed],
+            'SCORE': [random.random()]
+        })
+        data.to_csv(output[0], index=False)
+
+
+rule select_best:
+    input:
+        lambda wildcards: expand(
+            "output/results{i}_{j}_seed{seed}.csv",
+            i=[wildcards.i],
+            j=[wildcards.j],
+            seed=SEEDS
+        )
+    output:
+        "output/best_{i}_{j}.csv"
+    run:
+        dfs = [pd.read_csv(f) for f in input]
+        df = pd.concat(dfs, ignore_index=True)
+
+        # pick top 2
+        df = df.nlargest(2, ['SCORE'])
+
+        df.to_csv(output[0], index=False)
+
