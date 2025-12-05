@@ -21,8 +21,6 @@ project/
 ├─ nextflow.config          # optional, e.g., executor settings
 ├─ utils/
 │  └─ train_predict.py      # your Python script
-├─ input/
-│  └─ lonlatseed.csv
 └─ output/                  # will be created if missing
 ```
 
