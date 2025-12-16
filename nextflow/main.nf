@@ -1,3 +1,4 @@
+#!/usr/bin/env nextflow
 include {train_predict} from './modules/train_predict'
 include {aggregate} from './modules/aggregate'
 
